@@ -2978,6 +2978,12 @@ function show_help
   echo "   -UpdateCore"
   echo "    Install core updates only using none root user defined in $CONFIG_FILE"
   echo
+  echo "   -UpdateWorld"
+  echo "    Backup the world db (backups/), then install it again as -World does (after a pull)"
+  echo
+  echo "   -NoWait"
+  echo "    With any option: no countdown before a step that discards data (FORCE_WAIT=NO)"
+  echo
   echo "   -InstallAll rootuser rootpass"
   echo "    Install all db by droping previous ones and recreate them from scratch"
   echo "    Require root access with arg1 as root username and arg2 as root password"
@@ -3016,6 +3022,33 @@ fi
 
 # initialize sql queries
 set_sql_queries
+
+# -NoWait anywhere on the line: no countdown before a step that discards data (unattended runs),
+# whatever FORCE_WAIT in the config says
+args=()
+for arg in "$@"; do
+  if [[ "$arg" = "-NoWait" ]]; then
+    FORCE_WAIT="NO"
+  else
+    args+=("$arg")
+  fi
+done
+set -- "${args[@]}"
+
+# back up the world db, then install it again from this checkout using config (an update after a pull)
+if [[ "$1" = "-UpdateWorld" ]]; then
+  show_mysql_settings
+  echo
+  if ! backup_create "WORLD"; then
+    echo ">>> ERROR: world db backup failed, nothing installed"
+    exit 1
+  fi
+  if ! auto_script_install_world; then
+    exit 1
+  fi
+
+  exit 0
+fi
 
 # check if user just want fast db installation
 if [[ "$1" = "-InstallAll" ]]; then
